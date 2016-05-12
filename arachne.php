@@ -1,6 +1,8 @@
 <?php
 
-$urlList = [];
+include_once 'DOM_parser.php';
+
+$urlList = ["http://www.coca-colacompany.com/contact-us/index/"];
 
 foreach ($urlList as $url) {
 
@@ -14,11 +16,11 @@ foreach ($urlList as $url) {
 
     fclose($fp);
 
-    preg_match_all("/(([0-9]{2}.?){5})/", $content, $numbers, PREG_SET_ORDER); // uniquement FR
-    // (([0-9]{2,}.?)*) si international, mais capte plus que les tel
+    preg_match_all("/(([0-9]{2}.?){4}[0-9]{2})/", $content, $numbers, PREG_SET_ORDER); // only FR numbers like 01xxxxxxxx
+    // (([0-9]{2,}.?)*) if international, but as it is gets any set of numbers
 
     foreach ($numbers as $number) {
-        echo $url . " : " . $number;
+        echo $url . " : " . $number[0] . "<br/>";
     }
 }
 
