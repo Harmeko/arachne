@@ -1,27 +1,77 @@
 <?php
-
+include_once 'vendor/autoload.php';
 include_once 'DOM_parser.php';
 
-$urlList = ["http://www.coca-colacompany.com/contact-us/index/"];
+use thiagoalessio\TesseractOCR\TesseractOCR;
 
-foreach ($urlList as $url) {
+// CAPTCHA BREAKER VERSION
 
-    if(!$fp = fopen($url ,"r" )) { return false; }
+$time_start = microtime(true);
 
-    $content = "";
 
-    while(!feof($fp)) {
-        $content .= fgets($fp, 1024);
-    }
+$url = "http://challenge01.root-me.org/programmation/ch8/";
 
-    fclose($fp);
-
-    preg_match_all("/(([0-9]{2}.?){4}[0-9]{2})/", $content, $numbers, PREG_SET_ORDER); // only FR numbers like 01xxxxxxxx
-    // (([0-9]{2,}.?)*) if international, but as it is gets any set of numbers
-
-    foreach ($numbers as $number) {
-        echo $url . " : " . $number[0] . "<br/>";
-    }
+if (!$fp = fopen($url, "r")) {
+    return false;
 }
 
-?>
+$content = "";
+
+while (!feof($fp)) {
+    $content .= fgets($fp, 1024);
+}
+
+preg_match('/src=\"data:image\/([a-zA-Z]*);base64,([^\"]*)\"/', $content, $matches);
+
+
+$ifp = fopen('picture.png', 'wb');
+
+fwrite($ifp, base64_decode($matches[2]));
+
+fclose($ifp);
+
+$resultOCR = '';
+
+
+$image = new Imagick('picture.png');
+$image->modulateImage(90, 0, 100);
+
+// removing black dots in the image
+$target = 'rgb(0,0,0)';
+$fill = 'white';
+$fuzz = 0.05 * $image->getQuantumRange()['quantumRangeLong'];
+$image->opaquePaintImage($target, $fill, $fuzz, false, Imagick::CHANNEL_DEFAULT);
+
+$image->writeImage('picture.png');
+
+$str = (new TesseractOCR('picture.png'))
+    ->whitelist(range(0, 9), range('A', 'Z'), range('a', 'z'))
+    ->run();
+
+$resultOCR = str_replace(' ', '', $str);
+
+var_dump($resultOCR);
+
+$data = array('cametu' => $resultOCR);
+
+// use key 'http' even if you send the request to https://...
+$options = array(
+    'http' => array(
+        'header' => "Content-type: application/x-www-form-urlencoded\r\n",
+        'method' => 'POST',
+        'content' => http_build_query($data)
+    )
+);
+$context = stream_context_create($options);
+$result = file_get_contents($url, false, $context);
+//if ($result === FALSE)
+//    var_dump("error");
+
+preg_match('/<p>(.*)<\/p>/', $result, $match);
+var_dump($match[1]);
+
+$time_end = microtime(true);
+
+$execution_time = ($time_end - $time_start);
+
+echo 'Total Execution Time: ' . $execution_time . ' seconds';
